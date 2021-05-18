@@ -1,0 +1,116 @@
+# to open the container in bash mode just to test things
+# like: if boost was installed: find /usr -name libboost*.*
+
+docker run -v <host>:<container> -ti <image> bash
+
+ex: docker run -v e:/Projects/c++_projects/myWebSite:/usr/src/cppbox -ti cppbox:latest bash
+
+# - v option will create a volume
+# <host directory> will be a dir in the host machine (absolute paths)
+# <container directory> the directory on the docker container (absolute paths)
+# <image> the name of the image to run
+
+touch somefilename.txt to create a file in the container
+
+# don't exit the container bash, you will share the source folder with the container so that you can just build things directly from there
+
+Crow
+====
+Download crow headers from https://github.com/ipkn/crow/releases
+Copy them in the hello_crow directory so that we can include them directly in our project
+Create a main file that loads crow and create our first app
+
+CMake
+=====
+Under the hello_crow we will create a CMakeLists.txt file
+Then we create a build directory from where we will run the cmake commands:
+- cmake .. (will make the project based on cmake file) - generates a make file
+- we will then call make from the same location (under the build folder) - this will build and link our project
+- the make will generate a hello_crow file in the build dir - this is our executable for our website
+
+Run our webserver
+=================
+just execute the hello_crow file from the container, the result will look like this:
+PORT = 18080
+(2021-05-18 09:00:02) [INFO    ] Crow/0.1 server is running at 0.0.0.0:18080 using 8 threads(2021-05-18 09:00:02) [INFO    ] Call `app.loglevel(crow::LogLevel::Warning)` to hide Info level logs.
+
+We need to open the port 18080 from our container for our machine:
+docker run -v <host>:<container> -p <host port>:<container port> -e PORT=8081 <image> <app to run>
+
+# - p opens the port
+# -e creates an env var with the value of our port
+
+docker run -v e:/Projects/c++_projects/myWebSite:/usr/src/cppbox -p 8080:8080 -e PORT=8080 cppbox:latest /usr/src/cppbox/hello_crow/build/hello_crow
+(at the end will use the path to the executable)
+
+Deploy on heroku
+================
+
+We need to install heroku (see heroku website)
+Then we need to build our image that we will name hello_crow
+We will start our container again with the bash command (docker run -ti cppbox:latest bash)
+Will copy the id after running docker ps (lists the containers)
+Will copy the cppbox dir from the running container (which is strange since we don't running with volumes):
+    docker cp . 773338a1adcd:/usr/src/cppbox
+
+    then we will create a new image based on this container:
+    docker commit 773338a1adcd hello_crow:latest
+
+We will then create another docker file in the website dir:
+    FROM hello_crow  # our image
+
+    WORKDIR /usr/src/cppbox/hello_crow/build # the starting dir
+    CMD ["./hello_crow"] # we run this from the starting dir (our hello_crow exe)
+
+* Creating an heroku app:
+
+PS E:\Projects\c++_projects\myWebSite\hello_crow> heroku create 
+
+ »   Warning: heroku update available from 7.53.0 to 7.53.1.
+Creating app... done, ⬢ shrouded-citadel-68059
+https://shrouded-citadel-68059.herokuapp.com/ | https://git.heroku.com/shrouded-citadel-68059.git
+
+Note the app info.
+
+* Deploy our container to heroku:
+heroku container:push web -a shrouded-citadel-68059
+
+* Release our heroku container:
+heroku container:release web -a shrouded-citadel-68059
+
+* Open our app:
+heroku open -a shrouded-citadel-68059
+
+Docker Hub
+==========
+
+Store our image
+Publish images
+
+1. Login on dockerhub: docker login --username=bogdan41626
+2. List all images: docker images
+3. Take the hello_crow id so that we can create a tag:
+docker tag ad3aea8fd0d0 bogdan41626/hello_crow:latest
+4. Push the image
+docker push bogdan41626/hello_crow:latest
+
+HTML as string
+==============
+
+* pure html
+    * add html file
+    * a rout handler
+* HTML and Mustache templates
+
+Update main.cpp to load the index.html just created
+
+# Checking for current dir:
+            using namespace boost::filesystem;
+            path full_path(current_path());
+            directory_iterator end_itr;
+            string data;
+            for (directory_iterator it(full_path); it != end_itr; ++it)
+            {
+                data = data + "\n" +  it->path().string();
+            }
+
